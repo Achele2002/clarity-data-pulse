@@ -20,7 +20,9 @@ Clarinet.test({
         [
           types.ascii("Test Metric"),
           types.ascii("Test Description"),
-          types.uint(100)
+          types.uint(100),
+          types.uint(0),
+          types.uint(1000)
         ],
         deployer.address
       )
@@ -33,7 +35,7 @@ Clarinet.test({
 });
 
 Clarinet.test({
-  name: "Can record and retrieve data points",
+  name: "Can record and retrieve data points within bounds",
   async fn(chain: Chain, accounts: Map<string, Account>) {
     const deployer = accounts.get("deployer")!;
     
@@ -44,6 +46,8 @@ Clarinet.test({
         [
           types.ascii("Test Metric"),
           types.ascii("Test Description"), 
+          types.uint(100),
+          types.uint(0),
           types.uint(100)
         ],
         deployer.address
@@ -71,6 +75,37 @@ Clarinet.test({
 });
 
 Clarinet.test({
+  name: "Cannot record data points outside bounds",
+  async fn(chain: Chain, accounts: Map<string, Account>) {
+    const deployer = accounts.get("deployer")!;
+    
+    let block = chain.mineBlock([
+      Tx.contractCall(
+        "data-pulse", 
+        "add-metric",
+        [
+          types.ascii("Test Metric"),
+          types.ascii("Test Description"), 
+          types.uint(100),
+          types.uint(0),
+          types.uint(100)
+        ],
+        deployer.address
+      ),
+      Tx.contractCall(
+        "data-pulse",
+        "record-data-point", 
+        [types.uint(1), types.uint(150)],
+        deployer.address
+      )
+    ]);
+
+    assertEquals(block.receipts.length, 2);
+    block.receipts[1].result.expectErr().expectUint(103);
+  },
+});
+
+Clarinet.test({
   name: "Non-owners cannot add metrics",
   async fn(chain: Chain, accounts: Map<string, Account>) {
     const wallet_1 = accounts.get("wallet_1")!;
@@ -82,6 +117,8 @@ Clarinet.test({
         [
           types.ascii("Test Metric"),
           types.ascii("Test Description"),
+          types.uint(100),
+          types.uint(0),
           types.uint(100)
         ],
         wallet_1.address
